@@ -4,6 +4,7 @@ import { sql, ensureSchema } from "@/lib/db";
 import { formatRupiah } from "@/lib/rupiah";
 import { addExpense, deleteExpense, deleteProject, isAuthed } from "@/app/actions";
 import { Controls, Err } from "@/app/ui";
+import { Submit } from "@/app/submit";
 
 export const dynamic = "force-dynamic";
 
@@ -167,7 +168,7 @@ export default async function Project({
           </datalist>
           <input name="amount" required placeholder="Jumlah" aria-label="Jumlah dalam Rupiah" className="field" />
           <input name="note" placeholder="Keterangan" aria-label="Keterangan" className="field" />
-          <button className="btn justify-self-start">Tambah</button>
+          <Submit className="btn justify-self-start">Tambah</Submit>
         </form>
       )}
 
@@ -188,9 +189,9 @@ export default async function Project({
               {authed && (
                 <form action={deleteExpense}>
                   <input type="hidden" name="id" value={e.id} />
-                  <button className="link text-sm" title="Hapus" aria-label={`Hapus ${e.category} ${e.spent_on}`}>
+                  <Submit className="link text-sm" label={`Hapus ${e.category} ${e.spent_on}`}>
                     Hapus
-                  </button>
+                  </Submit>
                 </form>
               )}
             </div>
@@ -219,7 +220,7 @@ export default async function Project({
                 aria-label={`Ketik ${project.name} untuk memastikan penghapusan`}
                 className="field max-w-xs"
               />
-              <button className="btn btn-danger">Hapus permanen</button>
+              <Submit className="btn btn-danger">Hapus permanen</Submit>
               <Link href={back} className="link text-sm">
                 Batal
               </Link>

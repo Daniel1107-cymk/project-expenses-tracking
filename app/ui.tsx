@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { login, logout, isAuthed, setTheme } from "./actions";
+import { Submit } from "./submit";
 
 export function Err({ msg }: { msg?: string }) {
   if (!msg) return null;
@@ -16,7 +17,7 @@ async function Gate({ back }: { back: string }) {
     return (
       <form action={logout}>
         <input type="hidden" name="back" value={back} />
-        <button className="link text-sm">Keluar</button>
+        <Submit className="link text-sm">Keluar</Submit>
       </form>
     );
   return (
@@ -29,7 +30,7 @@ async function Gate({ back }: { back: string }) {
         aria-label="Password untuk mengedit"
         className="field max-w-36"
       />
-      <button className="btn">Masuk</button>
+      <Submit>Masuk</Submit>
     </form>
   );
 }
@@ -48,9 +49,9 @@ async function ThemeToggle() {
   return (
     <form action={setTheme}>
       <input type="hidden" name="theme" value={NEXT[theme]} />
-      <button className="link text-sm" title="Ganti tema">
+      <Submit className="link text-sm" title="Ganti tema" label={`Tema ${THEMES[theme]}, klik untuk ganti`}>
         {THEMES[theme]}
-      </button>
+      </Submit>
     </form>
   );
 }

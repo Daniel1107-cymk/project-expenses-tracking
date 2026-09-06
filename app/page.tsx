@@ -3,6 +3,7 @@ import { sql, ensureSchema } from "@/lib/db";
 import { formatRupiah } from "@/lib/rupiah";
 import { addProject, isAuthed } from "./actions";
 import { Controls, Err } from "./ui";
+import { Submit } from "./submit";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
       {authed && (
         <form action={addProject} className="flex gap-2">
           <input name="name" placeholder="Nama proyek baru" className="field" />
-          <button className="btn shrink-0">Tambah</button>
+          <Submit className="btn shrink-0">Tambah</Submit>
         </form>
       )}
     </main>
