@@ -27,6 +27,7 @@ export function ensureSchema() {
       note text not null default '',
       created_at timestamptz not null default now()
     )`;
+    await sql`create index if not exists expenses_project_spent on expenses (project_id, spent_on)`;
   })();
   return ready;
 }

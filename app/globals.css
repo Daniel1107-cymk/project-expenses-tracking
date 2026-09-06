@@ -123,3 +123,8 @@ button:disabled { opacity: 0.6; cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   .rise { animation: none; }
 }
+
+/* ponytail: rangka muat -- warna track yang sudah ada, satu keyframe. */
+.skeleton { background: var(--color-track); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
