@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Catatan Pengeluaran
 
-## Getting Started
+Pencatatan pengeluaran per proyek (kos) dengan ringkasan per kategori, per orang,
+dan per bulan. Ringkasan bisa dilihat siapa saja yang punya link; menambah dan
+menghapus butuh password.
 
-First, run the development server:
+## Setup lokal
 
 ```bash
+cp .env.example .env.local   # isi DATABASE_URL dan ADMIN_PASSWORD
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Tabel dibuat otomatis saat halaman pertama kali dibuka.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy ke Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Push repo ini ke GitHub, lalu **Add New > Project** di Vercel.
+2. **Storage > Create Database > Neon** (free tier), hubungkan ke project ini.
+   `DATABASE_URL` terisi otomatis — pakai connection string yang `-pooler`.
+3. **Settings > Environment Variables**: tambahkan `ADMIN_PASSWORD`.
+4. Redeploy. Kirim URL-nya ke manajer — dia cukup membuka halamannya,
+   tidak perlu password untuk melihat ringkasan.
 
-## Learn More
+## Catatan
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Jumlah disimpan sebagai Rupiah bulat (tanpa sen). Input menerima
+  `20000000` maupun `Rp 20.000.000`.
+- Halaman proyek disaring per bulan; bawaannya bulan berjalan (kalau bulan itu
+  kosong, dipakai bulan terakhir yang ada isinya). Klik baris di kolom
+  "per bulan" untuk pindah bulan, atau "lihat semua bulan" untuk melihat semua.
+  Bulannya ada di URL (`?bulan=2026-07`), jadi bisa dikirim ke manajer apa adanya.
+- Mengubah pengeluaran = hapus lalu tambah lagi.
+- Menghapus proyek ikut menghapus semua catatannya dan tidak bisa dibatalkan,
+  jadi konfirmasinya minta mengetik ulang nama proyek (dicek di server).
+- Tema: tombol `tema:` di pojok kanan atas, berputar otomatis (ikut sistem) ->
+  terang -> gelap. Pilihannya disimpan di cookie, jadi tidak ada kedipan
+  warna saat halaman dimuat.
+- Cek parser Rupiah: `npx tsx lib/rupiah.test.ts`
