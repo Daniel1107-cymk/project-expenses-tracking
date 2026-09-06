@@ -149,9 +149,9 @@ export default async function Project({
       </div>
 
       {authed && (
-        <form action={addExpense} className="card grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-6">
+        <form action={addExpense} className="card grid gap-3 p-5">
           <input type="hidden" name="project_id" value={id} />
-          <p className="label sm:col-span-2 lg:col-span-6">Catatan baru</p>
+          <p className="label">Catatan baru</p>
           <input name="spent_on" type="date" required defaultValue={today()} aria-label="Tanggal" className="field" />
           <input name="category" list="categories" placeholder="Kategori" aria-label="Kategori" className="field" />
           <datalist id="categories">
@@ -167,7 +167,7 @@ export default async function Project({
           </datalist>
           <input name="amount" required placeholder="Jumlah" aria-label="Jumlah dalam Rupiah" className="field" />
           <input name="note" placeholder="Keterangan" aria-label="Keterangan" className="field" />
-          <button className="btn">Tambah</button>
+          <button className="btn justify-self-start">Tambah</button>
         </form>
       )}
 
