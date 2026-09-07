@@ -12,6 +12,8 @@ type Row = { label: string; total: number; href?: string; on?: boolean };
 
 // ponytail: lebar batang dari baris terbesar, tanpa pustaka grafik.
 // Barisnya sekaligus jadi tautan filter -- tidak perlu kotak filter terpisah.
+// scroll={false}: menyaring bukan pindah halaman, jadi posisi gulir dipertahankan.
+// Tanpa itu router Next melompat ke atas tiap kali filternya diklik.
 function Breakdown({ title, rows }: { title: string; rows: Row[] }) {
   const max = Math.max(1, ...rows.map((r) => r.total));
   return (
@@ -19,7 +21,7 @@ function Breakdown({ title, rows }: { title: string; rows: Row[] }) {
       <h2 className="label">{title}</h2>
       <div className="mt-3 space-y-1">
         {rows.map((r) => (
-          <Link key={r.label} href={r.href ?? "#"} className={`row ${r.on ? "row-on" : ""}`}>
+          <Link key={r.label} href={r.href ?? "#"} scroll={false} className={`row ${r.on ? "row-on" : ""}`}>
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="truncate">{r.label}</span>
               <span className="num shrink-0">{formatRupiah(r.total)}</span>
@@ -161,11 +163,11 @@ export default async function Project({
             daripada baris rincian. Kalau bulannya sudah puluhan, ganti ke select. */}
         {months.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2">
-            <Link href={q({ bulan: "semua" })} className={`chip ${!month ? "chip-on" : ""}`}>
+            <Link href={q({ bulan: "semua" })} scroll={false} className={`chip ${!month ? "chip-on" : ""}`}>
               Semua
             </Link>
             {months.map((m) => (
-              <Link key={m} href={q({ bulan: m })} className={`chip ${month === m ? "chip-on" : ""}`}>
+              <Link key={m} href={q({ bulan: m })} scroll={false} className={`chip ${month === m ? "chip-on" : ""}`}>
                 {namaBulan(m, true)}
               </Link>
             ))}
@@ -224,12 +226,12 @@ export default async function Project({
           {/* ponytail: filter aktif tampil sebagai chip dengan silang untuk melepasnya.
               Memilihnya lewat baris ringkasan di atas, jadi tidak ada kotak filter. */}
           {kat && (
-            <Link href={q({ kategori: null })} className="chip chip-on">
+            <Link href={q({ kategori: null })} scroll={false} className="chip chip-on">
               {kat} ✕
             </Link>
           )}
           {org && (
-            <Link href={q({ orang: null })} className="chip chip-on">
+            <Link href={q({ orang: null })} scroll={false} className="chip chip-on">
               {org} ✕
             </Link>
           )}
