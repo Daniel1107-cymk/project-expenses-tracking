@@ -57,21 +57,42 @@ export default async function Project({
   if (!Number.isInteger(id)) notFound();
   await ensureSchema();
 
-  const num = (rows: unknown[]) =>
-    (rows as { label: string; total: string }[]).map((r) => ({ label: r.label, total: Number(r.total) }));
+  // ponytail: SATU query, sisanya dihitung di JS. Dulu 5 query dalam 2 gelombang
+  // berurutan (daftar bulan dulu, baru ringkasannya) -- dua kali bolak-balik ke
+  // database untuk data yang muat di memori. Left join supaya proyek tanpa
+  // catatan tetap terbaca. Ganti ke agregasi SQL kalau satu proyek sudah puluhan
+  // ribu baris; di bawah itu, mengirim barisnya lebih murah daripada RTT kedua.
+  const rows = (await sql`select p.name,
+                                 e.id, to_char(e.spent_on, 'YYYY-MM-DD') as spent_on,
+                                 e.category, e.person, e.amount::text as amount, e.note
+                          from projects p left join expenses e on e.project_id = p.id
+                          where p.id = ${id}
+                          order by e.spent_on desc, e.id desc`) as {
+    name: string;
+    id: number | null;
+    spent_on: string;
+    category: string;
+    person: string;
+    amount: string;
+    note: string;
+  }[];
+  if (!rows.length) notFound();
+  const project = { name: rows[0].name };
+  const all = rows
+    .filter((r) => r.id !== null)
+    .map((r) => ({ ...r, id: r.id as number, amount: Number(r.amount), bulan: r.spent_on.slice(0, 7) }));
+
+  const groupSum = <T,>(items: T[], key: (t: T) => string, amount: (t: T) => number) => {
+    const m = new Map<string, number>();
+    for (const it of items) m.set(key(it), (m.get(key(it)) ?? 0) + amount(it));
+    return [...m].map(([label, total]) => ({ label, total }));
+  };
+  const byAmount = (a: Row, b: Row) => b.total - a.total;
 
   // Daftar bulan tidak ikut disaring -- dia yang jadi pilihan filternya.
-  const [projects, byMonthRaw] = await Promise.all([
-    sql`select id, name from projects where id = ${id}`.then((r) => r as { id: number; name: string }[]),
-    sql`select to_char(spent_on, 'YYYY-MM') as label, sum(amount)::text as total, count(*)::text as n
-        from expenses where project_id = ${id} group by 1 order by 1`.then(
-      (r) => r as { label: string; total: string; n: string }[],
-    ),
-  ]);
-  const byMonth = num(byMonthRaw);
-  const allCount = byMonthRaw.reduce((s, r) => s + Number(r.n), 0);
-  const project = projects[0];
-  if (!project) notFound();
+  const byMonth = groupSum(all, (e) => e.bulan, (e) => e.amount).sort((a, b) => a.label.localeCompare(b.label));
+  const allCount = all.length;
+  const allTime = all.reduce((s, e) => s + e.amount, 0);
 
   const months = byMonth.map((m) => m.label);
   const thisMonth = today().slice(0, 7);
@@ -83,34 +104,22 @@ export default async function Project({
       ? null
       : asked ?? (months.includes(thisMonth) ? thisMonth : months[months.length - 1] ?? thisMonth);
 
-  // ponytail: satu predikat, null = semua bulan. to_char cukup untuk ratusan
-  // baris; ganti ke rentang tanggal kalau tabelnya nanti besar.
   // ponytail: kategori/orang hanya menyaring daftar catatan, bukan ringkasannya --
   // ringkasan tetap gambaran satu bulan penuh sekaligus tombol filternya.
   const kat = kategori || null;
   const org = orang || null;
-  const [byCategory, byPerson, expenses] = await Promise.all([
-    sql`select category as label, sum(amount)::text as total from expenses
-        where project_id = ${id} and (${month}::text is null or to_char(spent_on, 'YYYY-MM') = ${month})
-        group by 1 order by sum(amount) desc`.then(num),
-    sql`select coalesce(nullif(person, ''), '(tanpa nama)') as label, sum(amount)::text as total from expenses
-        where project_id = ${id} and (${month}::text is null or to_char(spent_on, 'YYYY-MM') = ${month})
-        group by 1 order by sum(amount) desc`.then(num),
-    sql`select id, to_char(spent_on, 'YYYY-MM-DD') as spent_on, category, person, amount::text as amount, note
-        from expenses
-        where project_id = ${id} and (${month}::text is null or to_char(spent_on, 'YYYY-MM') = ${month})
-          and (${kat}::text is null or category = ${kat})
-          and (${org}::text is null or coalesce(nullif(person, ''), '(tanpa nama)') = ${org})
-        order by spent_on desc, id desc`.then(
-      (r) => r as { id: number; spent_on: string; category: string; person: string; amount: string; note: string }[],
-    ),
-  ]);
+  const namaOrang = (p: string) => p || "(tanpa nama)";
+  const inMonth = month ? all.filter((e) => e.bulan === month) : all;
+  const byCategory = groupSum(inMonth, (e) => e.category, (e) => e.amount).sort(byAmount);
+  const byPerson = groupSum(inMonth, (e) => namaOrang(e.person), (e) => e.amount).sort(byAmount);
+  const expenses = inMonth.filter(
+    (e) => (!kat || e.category === kat) && (!org || namaOrang(e.person) === org),
+  );
 
-  const shown = byCategory.reduce((s, r) => s + r.total, 0);
-  const allTime = byMonth.reduce((s, r) => s + r.total, 0);
+  const shown = inMonth.reduce((s, e) => s + e.amount, 0);
   const authed = await isAuthed();
   const back = `/projects/${id}`;
-  const people = [...new Set(expenses.map((e) => e.person).filter(Boolean))];
+  const people = [...new Set(all.map((e) => e.person).filter(Boolean))];
   const periode = month ? namaBulan(month) : "Semua bulan";
 
   // ponytail: satu pembangun URL; nilai kosong dibuang jadi tautannya tetap pendek.
