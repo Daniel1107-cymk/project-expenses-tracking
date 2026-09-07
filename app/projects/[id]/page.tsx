@@ -8,19 +8,20 @@ import { Submit } from "@/app/submit";
 
 export const dynamic = "force-dynamic";
 
-type Row = { label: string; total: number };
+type Row = { label: string; total: number; href?: string; on?: boolean };
 
 // ponytail: lebar batang dari baris terbesar, tanpa pustaka grafik.
+// Barisnya sekaligus jadi tautan filter -- tidak perlu kotak filter terpisah.
 function Breakdown({ title, rows }: { title: string; rows: Row[] }) {
   const max = Math.max(1, ...rows.map((r) => r.total));
   return (
     <section className="card p-5">
       <h2 className="label">{title}</h2>
-      <div className="mt-4 space-y-3">
+      <div className="mt-3 space-y-1">
         {rows.map((r) => (
-          <div key={r.label}>
+          <Link key={r.label} href={r.href ?? "#"} className={`row ${r.on ? "row-on" : ""}`}>
             <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span>{r.label}</span>
+              <span className="truncate">{r.label}</span>
               <span className="num shrink-0">{formatRupiah(r.total)}</span>
             </div>
             <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[var(--color-track)]">
@@ -29,7 +30,7 @@ function Breakdown({ title, rows }: { title: string; rows: Row[] }) {
                 style={{ width: `${(r.total / max) * 100}%` }}
               />
             </span>
-          </div>
+          </Link>
         ))}
         {!rows.length && <p className="muted text-sm">Belum ada data.</p>}
       </div>
@@ -49,10 +50,10 @@ export default async function Project({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ err?: string; bulan?: string; hapus?: string }>;
+  searchParams: Promise<{ err?: string; bulan?: string; hapus?: string; kategori?: string; orang?: string }>;
 }) {
   const id = Number((await params).id);
-  const { err, bulan, hapus } = await searchParams;
+  const { err, bulan, hapus, kategori, orang } = await searchParams;
   if (!Number.isInteger(id)) notFound();
   await ensureSchema();
 
@@ -84,6 +85,10 @@ export default async function Project({
 
   // ponytail: satu predikat, null = semua bulan. to_char cukup untuk ratusan
   // baris; ganti ke rentang tanggal kalau tabelnya nanti besar.
+  // ponytail: kategori/orang hanya menyaring daftar catatan, bukan ringkasannya --
+  // ringkasan tetap gambaran satu bulan penuh sekaligus tombol filternya.
+  const kat = kategori || null;
+  const org = orang || null;
   const [byCategory, byPerson, expenses] = await Promise.all([
     sql`select category as label, sum(amount)::text as total from expenses
         where project_id = ${id} and (${month}::text is null or to_char(spent_on, 'YYYY-MM') = ${month})
@@ -94,6 +99,8 @@ export default async function Project({
     sql`select id, to_char(spent_on, 'YYYY-MM-DD') as spent_on, category, person, amount::text as amount, note
         from expenses
         where project_id = ${id} and (${month}::text is null or to_char(spent_on, 'YYYY-MM') = ${month})
+          and (${kat}::text is null or category = ${kat})
+          and (${org}::text is null or coalesce(nullif(person, ''), '(tanpa nama)') = ${org})
         order by spent_on desc, id desc`.then(
       (r) => r as { id: number; spent_on: string; category: string; person: string; amount: string; note: string }[],
     ),
@@ -105,6 +112,20 @@ export default async function Project({
   const back = `/projects/${id}`;
   const people = [...new Set(expenses.map((e) => e.person).filter(Boolean))];
   const periode = month ? namaBulan(month) : "Semua bulan";
+
+  // ponytail: satu pembangun URL; nilai kosong dibuang jadi tautannya tetap pendek.
+  const q = (over: Record<string, string | null>) => {
+    const p = new URLSearchParams();
+    Object.entries({ bulan: bulan ?? "", kategori: kategori ?? "", orang: orang ?? "", ...over }).forEach(
+      ([k, v]) => v && p.set(k, v),
+    );
+    return p.size ? `${back}?${p}` : back;
+  };
+  const listTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
+  // Kunci obyek non-angka menjaga urutan sisip, jadi tanggalnya tetap terurut.
+  const perHari = expenses.reduce<Record<string, typeof expenses>>((m, e) => ((m[e.spent_on] ??= []).push(e), m), {});
+  const tanggal = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <main className="space-y-6">
@@ -131,11 +152,11 @@ export default async function Project({
             daripada baris rincian. Kalau bulannya sudah puluhan, ganti ke select. */}
         {months.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2">
-            <Link href={`${back}?bulan=semua`} className={`chip ${!month ? "chip-on" : ""}`}>
+            <Link href={q({ bulan: "semua" })} className={`chip ${!month ? "chip-on" : ""}`}>
               Semua
             </Link>
             {months.map((m) => (
-              <Link key={m} href={`${back}?bulan=${m}`} className={`chip ${month === m ? "chip-on" : ""}`}>
+              <Link key={m} href={q({ bulan: m })} className={`chip ${month === m ? "chip-on" : ""}`}>
                 {namaBulan(m, true)}
               </Link>
             ))}
@@ -144,9 +165,23 @@ export default async function Project({
       </section>
 
       <div className="rise grid gap-4 sm:grid-cols-3" style={{ animationDelay: "60ms" }}>
-        <Breakdown title="Per kategori" rows={byCategory} />
-        <Breakdown title="Per orang" rows={byPerson} />
-        <Breakdown title="Per bulan" rows={byMonth.map((r) => ({ ...r, label: namaBulan(r.label, true) }))} />
+        <Breakdown
+          title="Per kategori"
+          rows={byCategory.map((r) => ({ ...r, on: r.label === kat, href: q({ kategori: r.label === kat ? null : r.label }) }))}
+        />
+        <Breakdown
+          title="Per orang"
+          rows={byPerson.map((r) => ({ ...r, on: r.label === org, href: q({ orang: r.label === org ? null : r.label }) }))}
+        />
+        <Breakdown
+          title="Per bulan"
+          rows={byMonth.map((r) => ({
+            ...r,
+            label: namaBulan(r.label, true),
+            on: r.label === month,
+            href: q({ bulan: r.label }),
+          }))}
+        />
       </div>
 
       {authed && (
@@ -173,31 +208,58 @@ export default async function Project({
       )}
 
       <section className="card rise overflow-hidden" style={{ animationDelay: "120ms" }}>
-        <h2 className="label border-b border-[var(--color-line)] px-5 py-4">Catatan · {periode}</h2>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--color-line)] px-5 py-4">
+          <h2 className="label mr-auto">
+            Catatan · {periode} · {expenses.length} entri · <span className="num">{formatRupiah(listTotal)}</span>
+          </h2>
+          {/* ponytail: filter aktif tampil sebagai chip dengan silang untuk melepasnya.
+              Memilihnya lewat baris ringkasan di atas, jadi tidak ada kotak filter. */}
+          {kat && (
+            <Link href={q({ kategori: null })} className="chip chip-on">
+              {kat} ✕
+            </Link>
+          )}
+          {org && (
+            <Link href={q({ orang: null })} className="chip chip-on">
+              {org} ✕
+            </Link>
+          )}
+        </div>
+        {/* ponytail: dikelompokkan per tanggal -- tanggalnya tidak lagi diulang di
+            tiap baris, dan subtotal harian ikut kelihatan gratis. */}
         <div className="divide-y divide-[var(--color-line)]">
-          {expenses.map((e) => (
-            <div key={e.id} className="flex items-start gap-4 px-5 py-4">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{e.category}</p>
-                <p className="muted mt-0.5 text-sm">
-                  {e.spent_on}
-                  {e.person && ` · ${e.person}`}
-                  {e.note && ` · ${e.note}`}
-                </p>
+          {Object.entries(perHari).map(([hari, rows]) => (
+            <div key={hari}>
+              <div className="flex items-baseline justify-between gap-3 bg-[var(--color-track)] px-5 py-1.5 text-xs">
+                <span className="muted">{tanggal(hari)}</span>
+                <span className="num muted">{formatRupiah(rows.reduce((s, e) => s + Number(e.amount), 0))}</span>
               </div>
-              <span className="num shrink-0 font-medium">{formatRupiah(Number(e.amount))}</span>
-              {authed && (
-                <form action={deleteExpense}>
-                  <input type="hidden" name="id" value={e.id} />
-                  <Submit className="link text-sm" label={`Hapus ${e.category} ${e.spent_on}`}>
-                    Hapus
-                  </Submit>
-                </form>
-              )}
+              {rows.map((e) => (
+                <div key={e.id} className="flex items-start gap-4 px-5 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">
+                      {e.category}
+                      {e.person && <span className="muted font-normal"> · {e.person}</span>}
+                    </p>
+                    {e.note && <p className="muted mt-0.5 text-sm">{e.note}</p>}
+                  </div>
+                  <span className="num shrink-0 font-medium">{formatRupiah(Number(e.amount))}</span>
+                  {authed && (
+                    <form action={deleteExpense}>
+                      <input type="hidden" name="id" value={e.id} />
+                      <Submit className="link text-sm" label={`Hapus ${e.category} ${e.spent_on}`}>
+                        Hapus
+                      </Submit>
+                    </form>
+                  )}
+                </div>
+              ))}
             </div>
           ))}
           {!expenses.length && (
-            <p className="muted p-10 text-center">Tidak ada pengeluaran pada {periode.toLowerCase()}.</p>
+            <p className="muted p-10 text-center">
+              Tidak ada pengeluaran{kat || org ? " untuk filter ini" : ""} pada {periode.toLowerCase()}.
+            </p>
           )}
         </div>
       </section>

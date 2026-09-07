@@ -128,3 +128,15 @@ button:disabled { opacity: 0.6; cursor: default; }
 .skeleton { background: var(--color-track); animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* baris ringkasan yang bisa diklik untuk menyaring daftar catatan */
+.row {
+  display: block;
+  margin: 0 -0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.row:hover { background: var(--color-track); }
+.row-on { background: var(--color-track); }
+.row-on span { color: var(--color-fg); }
