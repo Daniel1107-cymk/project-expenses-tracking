@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, Plus, Trash, X } from "@phosphor-icons/react/dist/ssr";
 import { sql, ensureSchema } from "@/lib/db";
 import { formatRupiah } from "@/lib/rupiah";
 import { addExpense, deleteExpense, deleteProject, isAuthed } from "@/app/actions";
 import { Controls, Err } from "@/app/ui";
 import { Submit } from "@/app/submit";
+import { AnimatedRupiah } from "@/app/number";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,7 @@ function Breakdown({ title, rows }: { title: string; rows: Row[] }) {
             </div>
             <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[var(--color-track)]">
               <span
-                className="block h-full rounded-full bg-[var(--color-fg)]"
+                className="block h-full rounded-full bg-[var(--color-accent)]"
                 style={{ width: `${(r.total / max) * 100}%` }}
               />
             </span>
@@ -143,7 +145,8 @@ export default async function Project({
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <Link href="/" className="link text-sm">
-            ← Semua proyek
+            <ArrowLeft size={14} weight="bold" />
+            Semua proyek
           </Link>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{project.name}</h1>
         </div>
@@ -152,160 +155,174 @@ export default async function Project({
 
       <Err msg={err} />
 
-      <section className="card rise p-6">
-        <p className="label">Total · {periode}</p>
-        <p className="num mt-1 text-4xl font-semibold tracking-tight">{formatRupiah(shown)}</p>
-        <p className="muted mt-1 text-sm">
-          {expenses.length} catatan · seluruh proyek {formatRupiah(allTime)}
-        </p>
+      {/* ponytail: kolom kiri (ringkasan + rincian) tetap terlihat sambil
+          menggulir daftar catatan di kanan -- dulu semuanya satu kolom
+          bertumpuk ke bawah, rincian jadi jauh dari daftar yang disaringnya. */}
+      <div className="grid gap-6 lg:grid-cols-[300px_1fr] lg:items-start">
+        <div className="sidebar space-y-4">
+          <section className="card rise p-6">
+            <p className="label">Total · {periode}</p>
+            <AnimatedRupiah value={shown} className="num mt-1 block text-3xl font-semibold tracking-tight" />
+            <p className="muted mt-1 text-sm">
+              {expenses.length} catatan · seluruh proyek {formatRupiah(allTime)}
+            </p>
 
-        {/* ponytail: pilihan bulan sebagai chip -- lebih jelas bisa diklik
-            daripada baris rincian. Kalau bulannya sudah puluhan, ganti ke select. */}
-        {months.length > 0 && (
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Link href={q({ bulan: "semua" })} scroll={false} className={`chip ${!month ? "chip-on" : ""}`}>
-              Semua
-            </Link>
-            {months.map((m) => (
-              <Link key={m} href={q({ bulan: m })} scroll={false} className={`chip ${month === m ? "chip-on" : ""}`}>
-                {namaBulan(m, true)}
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="rise grid gap-4 sm:grid-cols-3" style={{ animationDelay: "60ms" }}>
-        <Breakdown
-          title="Per kategori"
-          rows={byCategory.map((r) => ({ ...r, on: r.label === kat, href: q({ kategori: r.label === kat ? null : r.label }) }))}
-        />
-        <Breakdown
-          title="Per orang"
-          rows={byPerson.map((r) => ({ ...r, on: r.label === org, href: q({ orang: r.label === org ? null : r.label }) }))}
-        />
-        <Breakdown
-          title="Per bulan"
-          rows={byMonth.map((r) => ({
-            ...r,
-            label: namaBulan(r.label, true),
-            on: r.label === month,
-            href: q({ bulan: r.label }),
-          }))}
-        />
-      </div>
-
-      {authed && (
-        <form action={addExpense} className="card grid gap-3 p-5">
-          <input type="hidden" name="project_id" value={id} />
-          <p className="label">Catatan baru</p>
-          <input name="spent_on" type="date" required defaultValue={today()} aria-label="Tanggal" className="field" />
-          <input name="category" list="categories" placeholder="Kategori" aria-label="Kategori" className="field" />
-          <datalist id="categories">
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-          <input name="person" list="people" placeholder="Nama" aria-label="Nama atau penerima" className="field" />
-          <datalist id="people">
-            {people.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
-          <input name="amount" required placeholder="Jumlah" aria-label="Jumlah dalam Rupiah" className="field" />
-          <input name="note" placeholder="Keterangan" aria-label="Keterangan" className="field" />
-          <Submit className="btn justify-self-start">Tambah</Submit>
-        </form>
-      )}
-
-      <section className="card rise overflow-hidden" style={{ animationDelay: "120ms" }}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--color-line)] px-5 py-4">
-          <h2 className="label mr-auto">
-            Catatan · {periode} · {expenses.length} entri · <span className="num">{formatRupiah(listTotal)}</span>
-          </h2>
-          {/* ponytail: filter aktif tampil sebagai chip dengan silang untuk melepasnya.
-              Memilihnya lewat baris ringkasan di atas, jadi tidak ada kotak filter. */}
-          {kat && (
-            <Link href={q({ kategori: null })} scroll={false} className="chip chip-on">
-              {kat} ✕
-            </Link>
-          )}
-          {org && (
-            <Link href={q({ orang: null })} scroll={false} className="chip chip-on">
-              {org} ✕
-            </Link>
-          )}
-        </div>
-        {/* ponytail: dikelompokkan per tanggal -- tanggalnya tidak lagi diulang di
-            tiap baris, dan subtotal harian ikut kelihatan gratis. */}
-        <div className="divide-y divide-[var(--color-line)]">
-          {Object.entries(perHari).map(([hari, rows]) => (
-            <div key={hari}>
-              <div className="flex items-baseline justify-between gap-3 bg-[var(--color-track)] px-5 py-1.5 text-xs">
-                <span className="muted">{tanggal(hari)}</span>
-                <span className="num muted">{formatRupiah(rows.reduce((s, e) => s + Number(e.amount), 0))}</span>
+            {/* ponytail: pilihan bulan sebagai chip -- lebih jelas bisa diklik
+                daripada baris rincian. Kalau bulannya sudah puluhan, ganti ke select. */}
+            {months.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Link href={q({ bulan: "semua" })} scroll={false} className={`chip ${!month ? "chip-on" : ""}`}>
+                  Semua
+                </Link>
+                {months.map((m) => (
+                  <Link key={m} href={q({ bulan: m })} scroll={false} className={`chip ${month === m ? "chip-on" : ""}`}>
+                    {namaBulan(m, true)}
+                  </Link>
+                ))}
               </div>
-              {rows.map((e) => (
-                <div key={e.id} className="flex items-start gap-4 px-5 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">
-                      {e.category}
-                      {e.person && <span className="muted font-normal"> · {e.person}</span>}
-                    </p>
-                    {e.note && <p className="muted mt-0.5 text-sm">{e.note}</p>}
+            )}
+          </section>
+
+          <Breakdown
+            title="Per kategori"
+            rows={byCategory.map((r) => ({ ...r, on: r.label === kat, href: q({ kategori: r.label === kat ? null : r.label }) }))}
+          />
+          <Breakdown
+            title="Per orang"
+            rows={byPerson.map((r) => ({ ...r, on: r.label === org, href: q({ orang: r.label === org ? null : r.label }) }))}
+          />
+          <Breakdown
+            title="Per bulan"
+            rows={byMonth.map((r) => ({
+              ...r,
+              label: namaBulan(r.label, true),
+              on: r.label === month,
+              href: q({ bulan: r.label }),
+            }))}
+          />
+        </div>
+
+        <div className="space-y-4">
+          {authed && (
+            <form action={addExpense} className="card grid gap-3 p-5 sm:grid-cols-2">
+              <input type="hidden" name="project_id" value={id} />
+              <p className="label sm:col-span-2">Catatan baru</p>
+              <input name="spent_on" type="date" required defaultValue={today()} aria-label="Tanggal" className="field" />
+              <input name="amount" required placeholder="Jumlah" aria-label="Jumlah dalam Rupiah" className="field" />
+              <input name="category" list="categories" placeholder="Kategori" aria-label="Kategori" className="field" />
+              <datalist id="categories">
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+              <input name="person" list="people" placeholder="Nama" aria-label="Nama atau penerima" className="field" />
+              <datalist id="people">
+                {people.map((p) => (
+                  <option key={p} value={p} />
+                ))}
+              </datalist>
+              <input name="note" placeholder="Keterangan" aria-label="Keterangan" className="field sm:col-span-2" />
+              <Submit className="btn justify-self-start sm:col-span-2">
+                <Plus size={16} weight="bold" />
+                Tambah
+              </Submit>
+            </form>
+          )}
+
+          <section className="card rise overflow-hidden">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--color-line)] px-5 py-4">
+              <h2 className="label mr-auto">
+                Catatan · {periode} · {expenses.length} entri · <span className="num">{formatRupiah(listTotal)}</span>
+              </h2>
+              {/* ponytail: filter aktif tampil sebagai chip dengan silang untuk melepasnya.
+                  Memilihnya lewat baris ringkasan di atas, jadi tidak ada kotak filter. */}
+              {kat && (
+                <Link href={q({ kategori: null })} scroll={false} className="chip chip-on">
+                  {kat} <X size={12} weight="bold" />
+                </Link>
+              )}
+              {org && (
+                <Link href={q({ orang: null })} scroll={false} className="chip chip-on">
+                  {org} <X size={12} weight="bold" />
+                </Link>
+              )}
+            </div>
+            {/* ponytail: dikelompokkan per tanggal -- tanggalnya tidak lagi diulang di
+                tiap baris, dan subtotal harian ikut kelihatan gratis. */}
+            <div className="divide-y divide-[var(--color-line)]">
+              {Object.entries(perHari).map(([hari, rows]) => (
+                <div key={hari}>
+                  <div className="flex items-baseline justify-between gap-3 bg-[var(--color-track)] px-5 py-1.5 text-xs">
+                    <span className="muted">{tanggal(hari)}</span>
+                    <span className="num muted">{formatRupiah(rows.reduce((s, e) => s + Number(e.amount), 0))}</span>
                   </div>
-                  <span className="num shrink-0 font-medium">{formatRupiah(Number(e.amount))}</span>
-                  {authed && (
-                    <form action={deleteExpense}>
-                      <input type="hidden" name="id" value={e.id} />
-                      <Submit className="link text-sm" label={`Hapus ${e.category} ${e.spent_on}`}>
-                        Hapus
-                      </Submit>
-                    </form>
-                  )}
+                  {rows.map((e) => (
+                    <div key={e.id} className="row-item flex items-start gap-4 px-5 py-3 pl-[18px]">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">
+                          {e.category}
+                          {e.person && <span className="muted font-normal"> · {e.person}</span>}
+                        </p>
+                        {e.note && <p className="muted mt-0.5 text-sm">{e.note}</p>}
+                      </div>
+                      <span className="num shrink-0 font-medium">{formatRupiah(Number(e.amount))}</span>
+                      {authed && (
+                        <form action={deleteExpense}>
+                          <input type="hidden" name="id" value={e.id} />
+                          <Submit className="link text-sm" label={`Hapus ${e.category} ${e.spent_on}`}>
+                            <Trash size={14} weight="bold" />
+                            Hapus
+                          </Submit>
+                        </form>
+                      )}
+                    </div>
+                  ))}
                 </div>
               ))}
+              {!expenses.length && (
+                <p className="muted p-10 text-center">
+                  Tidak ada pengeluaran{kat || org ? " untuk filter ini" : ""} pada {periode.toLowerCase()}.
+                </p>
+              )}
             </div>
-          ))}
-          {!expenses.length && (
-            <p className="muted p-10 text-center">
-              Tidak ada pengeluaran{kat || org ? " untuk filter ini" : ""} pada {periode.toLowerCase()}.
-            </p>
-          )}
-        </div>
-      </section>
-
-      {authed &&
-        (hapus === "1" ? (
-          <section className="card rise border-[var(--color-danger)] p-5">
-            <h2 className="font-medium text-[var(--color-danger)]">Hapus proyek</h2>
-            <p className="mt-2 max-w-prose text-sm">
-              Menghapus <strong>{project.name}</strong> juga menghapus {allCount} catatan senilai{" "}
-              {formatRupiah(allTime)}. Tindakan ini tidak bisa dibatalkan.
-            </p>
-            <form action={deleteProject} className="mt-4 flex flex-wrap items-center gap-3">
-              <input type="hidden" name="id" value={id} />
-              <input
-                name="konfirmasi"
-                required
-                autoComplete="off"
-                placeholder={`Ketik: ${project.name}`}
-                aria-label={`Ketik ${project.name} untuk memastikan penghapusan`}
-                className="field max-w-xs"
-              />
-              <Submit className="btn btn-danger">Hapus permanen</Submit>
-              <Link href={back} className="link text-sm">
-                Batal
-              </Link>
-            </form>
           </section>
-        ) : (
-          <p>
-            <Link href={`${back}?hapus=1`} className="link text-sm">
-              Hapus proyek ini
-            </Link>
-          </p>
-        ))}
+
+          {authed &&
+            (hapus === "1" ? (
+              <section className="card rise border-[var(--color-danger)] p-5">
+                <h2 className="font-medium text-[var(--color-danger)]">Hapus proyek</h2>
+                <p className="mt-2 max-w-prose text-sm">
+                  Menghapus <strong>{project.name}</strong> juga menghapus {allCount} catatan senilai{" "}
+                  {formatRupiah(allTime)}. Tindakan ini tidak bisa dibatalkan.
+                </p>
+                <form action={deleteProject} className="mt-4 flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="id" value={id} />
+                  <input
+                    name="konfirmasi"
+                    required
+                    autoComplete="off"
+                    placeholder={`Ketik: ${project.name}`}
+                    aria-label={`Ketik ${project.name} untuk memastikan penghapusan`}
+                    className="field max-w-xs"
+                  />
+                  <Submit className="btn btn-danger">
+                    <Trash size={16} weight="bold" />
+                    Hapus permanen
+                  </Submit>
+                  <Link href={back} className="link text-sm">
+                    Batal
+                  </Link>
+                </form>
+              </section>
+            ) : (
+              <p>
+                <Link href={`${back}?hapus=1`} className="link text-sm">
+                  Hapus proyek ini
+                </Link>
+              </p>
+            ))}
+        </div>
+      </div>
     </main>
   );
 }

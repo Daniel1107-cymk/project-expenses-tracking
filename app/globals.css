@@ -1,19 +1,21 @@
 @import "tailwindcss";
 
-/* Satu keluarga huruf, abu-abu netral, sudut membulat, satu warna bahaya.
-   Warna hanya dipakai untuk hal yang merusak -- sisanya kontras saja. */
+/* Zinc neutrals + satu aksen emerald untuk hal yang positif/interaktif,
+   merah hanya untuk hal yang merusak. light-dark() ikut color-scheme, jadi
+   tombol tema cukup mengubah satu properti. */
 @theme {
-  --font-sans: var(--f-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
-  /* ponytail: tetap satu palet. light-dark() ikut color-scheme, jadi tombol
-     tema cukup mengubah satu properti. */
-  --color-bg: light-dark(#f6f7f8, #0c0d0f);
-  --color-surface: light-dark(#ffffff, #141619);
-  --color-fg: light-dark(#14171a, #e9ebee);
-  --color-muted: light-dark(#5f6873, #969ea9);
-  --color-line: light-dark(#e5e7eb, #23262b);
-  --color-track: light-dark(#eceef1, #1e2126);
-  --color-danger: light-dark(#c02626, #f87171);
+  --color-bg: light-dark(#fafafa, #0a0a0b);
+  --color-surface: light-dark(#ffffff, #131316);
+  --color-fg: light-dark(#18181b, #f4f4f5);
+  --color-muted: light-dark(#71717a, #a1a1aa);
+  --color-line: light-dark(#e4e4e7, #26262a);
+  --color-track: light-dark(#f4f4f5, #1c1c1f);
+  --color-danger: light-dark(#dc2626, #f87171);
+  --color-accent: light-dark(#059669, #34d399);
+  --color-accent-soft: light-dark(#ecfdf5, #06301f);
 }
 
 :root { color-scheme: light dark; }
@@ -32,21 +34,54 @@ body {
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
-  border-radius: 12px;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px light-dark(rgb(24 24 27 / 0.03), rgb(0 0 0 / 0.2));
 }
+.row-item {
+  transition: background 0.15s;
+  border-left: 2px solid transparent;
+}
+.row-item:hover {
+  background: var(--color-track);
+  border-left-color: var(--color-accent);
+}
+
+.card-dashed { border-style: dashed; box-shadow: none; }
+
+/* ponytail: satu kartu dibalik warnanya (gelap di terang, terang di gelap)
+   supaya angka total langsung menonjol dari kartu proyek yang putih polos --
+   tanpa menambah warna baru ke palet. */
+.banner {
+  background: var(--color-fg);
+  color: var(--color-bg);
+  border: 1px solid var(--color-fg);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px light-dark(rgb(24 24 27 / 0.12), rgb(0 0 0 / 0.4));
+}
+.banner .muted { color: light-dark(rgb(255 255 255 / 0.6), rgb(24 24 27 / 0.55)); }
+.banner .label { color: var(--color-accent); }
+
+.card-hover { transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
+.card-hover:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 8px 24px light-dark(rgb(5 150 105 / 0.1), rgb(0 0 0 / 0.35));
+  transform: translateY(-2px);
+}
+
+.sidebar { position: sticky; top: 1.5rem; align-self: start; }
 .label {
   font-size: 13px;
   font-weight: 500;
   color: var(--color-muted);
 }
 .muted { color: var(--color-muted); }
-.num { font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
 
 .field {
   width: 100%;
   background: var(--color-surface);
   border: 1px solid var(--color-line);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 0.55rem 0.75rem;
   font: inherit;
   /* 16px: di iOS ukuran di bawah ini memicu zoom saat field difokus */
@@ -54,21 +89,25 @@ body {
   color: var(--color-fg);
 }
 .field::placeholder { color: var(--color-muted); }
-.field:focus { border-color: var(--color-fg); outline: none; }
+.field:focus { border-color: var(--color-accent); outline: none; }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   background: var(--color-fg);
   color: var(--color-surface);
   border: 1px solid var(--color-fg);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 0.55rem 1rem;
   font: inherit;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, transform 0.1s;
 }
-.btn:hover { opacity: 0.85; }
+.btn:hover { opacity: 0.88; }
+.btn:active { transform: scale(0.98); }
 button:disabled { opacity: 0.6; cursor: default; }
 
 /* cincin berputar; currentColor supaya cocok di tombol hitam maupun tautan */
@@ -76,7 +115,6 @@ button:disabled { opacity: 0.6; cursor: default; }
   display: inline-block;
   width: 0.85em;
   height: 0.85em;
-  margin-right: 0.5em;
   vertical-align: -0.1em;
   border: 2px solid currentColor;
   border-right-color: transparent;
@@ -91,7 +129,9 @@ button:disabled { opacity: 0.6; cursor: default; }
 
 /* pilihan bulan */
 .chip {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   border: 1px solid var(--color-line);
   border-radius: 999px;
   padding: 0.25rem 0.7rem;
@@ -100,18 +140,18 @@ button:disabled { opacity: 0.6; cursor: default; }
   white-space: nowrap;
   transition: border-color 0.15s, color 0.15s;
 }
-.chip:hover { border-color: var(--color-fg); color: var(--color-fg); }
+.chip:hover { border-color: var(--color-accent); color: var(--color-fg); }
 .chip-on {
-  background: var(--color-fg);
-  border-color: var(--color-fg);
-  color: var(--color-surface);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
-.link { color: var(--color-muted); cursor: pointer; text-underline-offset: 3px; }
+.link { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--color-muted); cursor: pointer; text-underline-offset: 3px; }
 .link:hover { color: var(--color-fg); text-decoration: underline; }
 
 :where(a, button, input, select):focus-visible {
-  outline: 2px solid var(--color-fg);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -138,5 +178,5 @@ button:disabled { opacity: 0.6; cursor: default; }
   transition: background 0.15s;
 }
 .row:hover { background: var(--color-track); }
-.row-on { background: var(--color-track); }
+.row-on { background: var(--color-accent-soft); }
 .row-on span { color: var(--color-fg); }
