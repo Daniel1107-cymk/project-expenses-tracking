@@ -35,7 +35,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
 
       <section className="banner rise p-6">
         <p className="label">Total semua proyek</p>
-        <AnimatedRupiah value={grand} className="num mt-1 block text-5xl font-semibold tracking-tight" />
+        <AnimatedRupiah value={grand} className="num mt-1 block text-3xl font-semibold tracking-tight sm:text-5xl" />
         <p className="muted mt-1 text-sm">{projects.length} proyek</p>
       </section>
 

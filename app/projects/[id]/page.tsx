@@ -183,23 +183,45 @@ export default async function Project({
             )}
           </section>
 
-          <Breakdown
-            title="Per kategori"
-            rows={byCategory.map((r) => ({ ...r, on: r.label === kat, href: q({ kategori: r.label === kat ? null : r.label }) }))}
-          />
-          <Breakdown
-            title="Per orang"
-            rows={byPerson.map((r) => ({ ...r, on: r.label === org, href: q({ orang: r.label === org ? null : r.label }) }))}
-          />
-          <Breakdown
-            title="Per bulan"
-            rows={byMonth.map((r) => ({
-              ...r,
-              label: namaBulan(r.label, true),
-              on: r.label === month,
-              href: q({ bulan: r.label }),
-            }))}
-          />
+          {/* ponytail: tab dari radio + CSS murni -- di mobile hanya satu rincian
+              tampil sekaligus (tidak perlu gulir tiga kartu), di layar lebar
+              (lg+) tab disembunyikan dan ketiganya tampil seperti biasa. Tanpa
+              JavaScript sama sekali. */}
+          <div className="breakdown-tabs">
+            <input type="radio" name="breakdown" id="tab-kategori" className="sr-only" defaultChecked />
+            <input type="radio" name="breakdown" id="tab-orang" className="sr-only" />
+            <input type="radio" name="breakdown" id="tab-bulan" className="sr-only" />
+
+            <div className="tab-bar">
+              <label htmlFor="tab-kategori" className="chip">Kategori</label>
+              <label htmlFor="tab-orang" className="chip">Orang</label>
+              <label htmlFor="tab-bulan" className="chip">Bulan</label>
+            </div>
+
+            <div className="panel panel-kategori">
+              <Breakdown
+                title="Per kategori"
+                rows={byCategory.map((r) => ({ ...r, on: r.label === kat, href: q({ kategori: r.label === kat ? null : r.label }) }))}
+              />
+            </div>
+            <div className="panel panel-orang">
+              <Breakdown
+                title="Per orang"
+                rows={byPerson.map((r) => ({ ...r, on: r.label === org, href: q({ orang: r.label === org ? null : r.label }) }))}
+              />
+            </div>
+            <div className="panel panel-bulan">
+              <Breakdown
+                title="Per bulan"
+                rows={byMonth.map((r) => ({
+                  ...r,
+                  label: namaBulan(r.label, true),
+                  on: r.label === month,
+                  href: q({ bulan: r.label }),
+                }))}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -257,7 +279,7 @@ export default async function Project({
                     <span className="num muted">{formatRupiah(rows.reduce((s, e) => s + Number(e.amount), 0))}</span>
                   </div>
                   {rows.map((e) => (
-                    <div key={e.id} className="row-item flex items-start gap-4 px-5 py-3 pl-[18px]">
+                    <div key={e.id} className="row-item flex flex-col gap-1 px-5 py-3 pl-[18px] sm:flex-row sm:items-start sm:gap-4">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">
                           {e.category}
@@ -265,16 +287,18 @@ export default async function Project({
                         </p>
                         {e.note && <p className="muted mt-0.5 text-sm">{e.note}</p>}
                       </div>
-                      <span className="num shrink-0 font-medium">{formatRupiah(Number(e.amount))}</span>
-                      {authed && (
-                        <form action={deleteExpense}>
-                          <input type="hidden" name="id" value={e.id} />
-                          <Submit className="link text-sm" label={`Hapus ${e.category} ${e.spent_on}`}>
-                            <Trash size={14} weight="bold" />
-                            Hapus
-                          </Submit>
-                        </form>
-                      )}
+                      <div className="flex items-center justify-between gap-4 sm:contents">
+                        <span className="num shrink-0 font-medium">{formatRupiah(Number(e.amount))}</span>
+                        {authed && (
+                          <form action={deleteExpense}>
+                            <input type="hidden" name="id" value={e.id} />
+                            <Submit className="link text-sm" label={`Hapus ${e.category} ${e.spent_on}`}>
+                              <Trash size={14} weight="bold" />
+                              Hapus
+                            </Submit>
+                          </form>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

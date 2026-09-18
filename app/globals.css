@@ -68,7 +68,30 @@ body {
   transform: translateY(-2px);
 }
 
-.sidebar { position: sticky; top: 1.5rem; align-self: start; }
+/* Tab Per kategori/orang/bulan di mobile -- radio tersembunyi + selector
+   sibling, jadi tidak perlu client component atau JavaScript untuk beralih. */
+.breakdown-tabs .tab-bar { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+.breakdown-tabs .tab-bar label { cursor: pointer; }
+.breakdown-tabs .panel { display: none; }
+#tab-kategori:checked ~ .panel-kategori,
+#tab-orang:checked ~ .panel-orang,
+#tab-bulan:checked ~ .panel-bulan { display: block; }
+#tab-kategori:checked ~ .tab-bar label[for="tab-kategori"],
+#tab-orang:checked ~ .tab-bar label[for="tab-orang"],
+#tab-bulan:checked ~ .tab-bar label[for="tab-bulan"] { background: var(--color-fg); border-color: var(--color-fg); color: var(--color-bg); }
+
+@media (min-width: 1024px) {
+  .breakdown-tabs .tab-bar { display: none; }
+  .breakdown-tabs .panel { display: block; }
+  .breakdown-tabs .panel + .panel { margin-top: 1rem; }
+}
+
+/* ponytail: sticky hanya di layar lebar tempat sidebar ini benar-benar jadi
+   kolom terpisah di samping -- di mobile semuanya satu kolom berurutan ke
+   bawah, jadi sticky di sana cuma bikin kartu menumpuk saat digulir. */
+@media (min-width: 1024px) {
+  .sidebar { position: sticky; top: 1.5rem; align-self: start; }
+}
 .label {
   font-size: 13px;
   font-weight: 500;
