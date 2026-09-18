@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Plus, Trash, X } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react/dist/ssr";
 import { sql, ensureSchema } from "@/lib/db";
 import { formatRupiah } from "@/lib/rupiah";
-import { addExpense, deleteExpense, deleteProject, isAuthed } from "@/app/actions";
+import { addExpense, deleteExpense, deleteProject, isAuthed, renameProject } from "@/app/actions";
 import { Controls, Err } from "@/app/ui";
 import { Submit } from "@/app/submit";
 import { AnimatedRupiah } from "@/app/number";
@@ -54,10 +54,10 @@ export default async function Project({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ err?: string; bulan?: string; hapus?: string; kategori?: string; orang?: string }>;
+  searchParams: Promise<{ err?: string; bulan?: string; hapus?: string; kategori?: string; orang?: string; edit?: string }>;
 }) {
   const id = Number((await params).id);
-  const { err, bulan, hapus, kategori, orang } = await searchParams;
+  const { err, bulan, hapus, kategori, orang, edit } = await searchParams;
   if (!Number.isInteger(id)) notFound();
   await ensureSchema();
 
@@ -148,7 +148,32 @@ export default async function Project({
             <ArrowLeft size={14} weight="bold" />
             Semua proyek
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{project.name}</h1>
+          {authed && edit === "1" ? (
+            <form action={renameProject} className="mt-1 flex items-center gap-2">
+              <input type="hidden" name="id" value={id} />
+              <input
+                name="name"
+                required
+                autoFocus
+                defaultValue={project.name}
+                aria-label="Nama proyek"
+                className="field max-w-xs text-2xl font-semibold tracking-tight"
+              />
+              <Submit className="btn">Simpan</Submit>
+              <Link href={back} className="link text-sm">
+                Batal
+              </Link>
+            </form>
+          ) : (
+            <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
+              {project.name}
+              {authed && (
+                <Link href={`${back}?edit=1`} className="link" aria-label="Ubah nama proyek">
+                  <PencilSimple size={16} weight="bold" />
+                </Link>
+              )}
+            </h1>
+          )}
         </div>
         <Controls back={back} />
       </header>

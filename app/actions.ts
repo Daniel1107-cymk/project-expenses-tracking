@@ -44,6 +44,21 @@ export async function addProject(form: FormData) {
   revalidatePath("/");
 }
 
+export async function renameProject(form: FormData) {
+  await gate();
+  const id = Number(form.get("id"));
+  const back = `/projects/${id}`;
+  const name = String(form.get("name") ?? "").trim();
+  if (!name) redirect(`${back}?edit=1&err=Nama+proyek+kosong`);
+  await ensureSchema();
+  const updated = await sql`update projects set name = ${name} where id = ${id} and not exists
+    (select 1 from projects where name = ${name} and id != ${id}) returning id`;
+  if (!updated.length) redirect(`${back}?edit=1&err=Nama+proyek+sudah+dipakai`);
+  revalidatePath("/");
+  revalidatePath(back);
+  redirect(back);
+}
+
 export async function addExpense(form: FormData) {
   await gate();
   const projectId = Number(form.get("project_id"));
