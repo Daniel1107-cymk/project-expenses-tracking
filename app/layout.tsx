@@ -4,7 +4,10 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { getTheme } from "./ui";
 
-export const metadata: Metadata = { title: "Catatan Pengeluaran", description: "Ringkasan pengeluaran per proyek" };
+export const metadata: Metadata = {
+  title: { default: "Catatan Pengeluaran", template: "%s | Catatan Pengeluaran" },
+  description: "Ringkasan pengeluaran per proyek",
+};
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (

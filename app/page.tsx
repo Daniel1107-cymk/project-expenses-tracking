@@ -35,7 +35,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
 
       <section className="banner rise p-6">
         <p className="label">Total semua proyek</p>
-        <AnimatedRupiah value={grand} className="num mt-1 block text-3xl font-semibold tracking-tight sm:text-5xl" />
+        <AnimatedRupiah value={grand} className="num mt-1 block text-2xl font-semibold tracking-tight min-[400px]:text-3xl sm:text-5xl" />
         <p className="muted mt-1 text-sm">{projects.length} proyek</p>
       </section>
 
@@ -56,7 +56,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
             </div>
             <span
               className={`num mt-3 block font-semibold tracking-tight ${
-                i === 0 && projects.length > 1 ? "text-4xl" : "text-2xl"
+                i === 0 && projects.length > 1 ? "text-2xl min-[400px]:text-3xl sm:text-4xl" : "text-2xl"
               }`}
             >
               {formatRupiah(p.total)}

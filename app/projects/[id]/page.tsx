@@ -1,6 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, MagnifyingGlass, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react/dist/ssr";
 import { sql, ensureSchema } from "@/lib/db";
 import { formatRupiah } from "@/lib/rupiah";
 import { addExpense, deleteExpense, deleteProject, isAuthed, renameProject, updateExpense } from "@/app/actions";
@@ -49,15 +50,23 @@ const namaBulan = (m: string, short = false) =>
 
 const CATEGORIES = ["SIPIL", "Material", "Gaji / Tenaga Kerja", "Operasional", "Tagihan Bulanan", "Lainnya"];
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const id = Number((await params).id);
+  if (!Number.isInteger(id)) return {};
+  await ensureSchema();
+  const [p] = (await sql`select name from projects where id = ${id}`) as { name: string }[];
+  return p ? { title: p.name } : {};
+}
+
 export default async function Project({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ err?: string; bulan?: string; hapus?: string; kategori?: string; orang?: string; edit?: string; ubah?: string }>;
+  searchParams: Promise<{ err?: string; bulan?: string; hapus?: string; kategori?: string; orang?: string; edit?: string; ubah?: string; cari?: string }>;
 }) {
   const id = Number((await params).id);
-  const { err, bulan, hapus, kategori, orang, edit, ubah } = await searchParams;
+  const { err, bulan, hapus, kategori, orang, edit, ubah, cari } = await searchParams;
   if (!Number.isInteger(id)) notFound();
   await ensureSchema();
 
@@ -103,8 +112,11 @@ export default async function Project({
   const asked = /^\d{4}-\d{2}$/.test(bulan ?? "") ? bulan! : null;
   // ponytail: bawaannya bulan berjalan seperti diminta; kalau bulan itu kosong,
   // jatuh ke bulan terakhir yang ada isinya -- halaman kosong bikin salah paham.
+  // Mencari tanpa memilih bulan berarti mencari di semua bulan: orang jarang ingat
+  // bulan catatan yang dicarinya, dan bulan berjalan bisa saja tidak memuatnya.
+  const term = (cari ?? "").trim().toLowerCase();
   const month =
-    bulan === "semua"
+    bulan === "semua" || (term && !bulan)
       ? null
       : asked ?? (months.includes(thisMonth) ? thisMonth : months[months.length - 1] ?? thisMonth);
 
@@ -116,8 +128,10 @@ export default async function Project({
   const inMonth = month ? all.filter((e) => e.bulan === month) : all;
   const byCategory = groupSum(inMonth, (e) => e.category, (e) => e.amount).sort(byAmount);
   const byPerson = groupSum(inMonth, (e) => namaOrang(e.person), (e) => e.amount).sort(byAmount);
+  const cocok = (e: (typeof all)[number]) =>
+    !term || [e.category, e.person, e.note, String(e.amount)].some((f) => f.toLowerCase().includes(term));
   const expenses = inMonth.filter(
-    (e) => (!kat || e.category === kat) && (!org || namaOrang(e.person) === org),
+    (e) => (!kat || e.category === kat) && (!org || namaOrang(e.person) === org) && cocok(e),
   );
 
   const shown = inMonth.reduce((s, e) => s + e.amount, 0);
@@ -129,7 +143,7 @@ export default async function Project({
   // ponytail: satu pembangun URL; nilai kosong dibuang jadi tautannya tetap pendek.
   const q = (over: Record<string, string | null>) => {
     const p = new URLSearchParams();
-    Object.entries({ bulan: bulan ?? "", kategori: kategori ?? "", orang: orang ?? "", ...over }).forEach(
+    Object.entries({ bulan: bulan ?? "", kategori: kategori ?? "", orang: orang ?? "", cari: cari ?? "", ...over }).forEach(
       ([k, v]) => v && p.set(k, v),
     );
     return p.size ? `${back}?${p}` : back;
@@ -187,7 +201,7 @@ export default async function Project({
         <div className="sidebar space-y-4">
           <section className="card rise p-6">
             <p className="label">Total · {periode}</p>
-            <AnimatedRupiah value={shown} className="num mt-1 block text-3xl font-semibold tracking-tight" />
+            <AnimatedRupiah value={shown} className="num mt-1 block text-2xl font-semibold tracking-tight min-[400px]:text-3xl" />
             <p className="muted mt-1 text-sm">
               {expenses.length} catatan · seluruh proyek {formatRupiah(allTime)}
             </p>
@@ -293,7 +307,31 @@ export default async function Project({
                   {org} <X size={12} weight="bold" />
                 </Link>
               )}
+              {term && (
+                <Link href={q({ cari: null })} scroll={false} className="chip chip-on">
+                  “{cari?.trim()}” <X size={12} weight="bold" />
+                </Link>
+              )}
             </div>
+            {/* ponytail: GET biasa -- hasilnya ada di URL, jadi bisa di-bookmark dan
+                tanpa JavaScript. Filter yang aktif ikut dibawa lewat input tersembunyi. */}
+            <form action={back} method="get" role="search" className="flex gap-2 border-b border-[var(--color-line)] px-5 py-3">
+              {bulan && <input type="hidden" name="bulan" value={bulan} />}
+              {kategori && <input type="hidden" name="kategori" value={kategori} />}
+              {orang && <input type="hidden" name="orang" value={orang} />}
+              <input
+                name="cari"
+                type="search"
+                defaultValue={cari ?? ""}
+                placeholder="Cari catatan"
+                aria-label="Cari catatan"
+                className="field"
+              />
+              <button className="btn shrink-0" aria-label="Cari">
+                <MagnifyingGlass size={16} weight="bold" />
+                <span className="hidden sm:inline">Cari</span>
+              </button>
+            </form>
             {/* ponytail: dikelompokkan per tanggal -- tanggalnya tidak lagi diulang di
                 tiap baris, dan subtotal harian ikut kelihatan gratis. */}
             <div className="divide-y divide-[var(--color-line)]">
@@ -329,10 +367,10 @@ export default async function Project({
                           </p>
                           {e.note && <p className="muted mt-0.5 text-sm">{e.note}</p>}
                         </div>
-                        <div className="flex items-center justify-between gap-4 sm:contents">
+                        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 sm:contents">
                           <span className="num shrink-0 font-medium">{formatRupiah(Number(e.amount))}</span>
                           {authed && (
-                            <div className="flex items-center gap-3">
+                            <div className="ml-auto flex items-center gap-3">
                               <Link
                                 href={q({ ubah: String(e.id) })}
                                 scroll={false}
@@ -359,7 +397,7 @@ export default async function Project({
               ))}
               {!expenses.length && (
                 <p className="muted p-10 text-center">
-                  Tidak ada pengeluaran{kat || org ? " untuk filter ini" : ""} pada {periode.toLowerCase()}.
+                  Tidak ada pengeluaran{kat || org || term ? " untuk filter ini" : ""} pada {periode.toLowerCase()}.
                 </p>
               )}
             </div>
