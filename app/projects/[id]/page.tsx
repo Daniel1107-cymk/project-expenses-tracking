@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react/dist/ssr";
 import { sql, ensureSchema } from "@/lib/db";
 import { formatRupiah } from "@/lib/rupiah";
-import { addExpense, deleteExpense, deleteProject, isAuthed, renameProject } from "@/app/actions";
+import { addExpense, deleteExpense, deleteProject, isAuthed, renameProject, updateExpense } from "@/app/actions";
 import { Controls, Err } from "@/app/ui";
 import { Submit } from "@/app/submit";
 import { AnimatedRupiah } from "@/app/number";
@@ -54,10 +54,10 @@ export default async function Project({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ err?: string; bulan?: string; hapus?: string; kategori?: string; orang?: string; edit?: string }>;
+  searchParams: Promise<{ err?: string; bulan?: string; hapus?: string; kategori?: string; orang?: string; edit?: string; ubah?: string }>;
 }) {
   const id = Number((await params).id);
-  const { err, bulan, hapus, kategori, orang, edit } = await searchParams;
+  const { err, bulan, hapus, kategori, orang, edit, ubah } = await searchParams;
   if (!Number.isInteger(id)) notFound();
   await ensureSchema();
 
@@ -303,29 +303,58 @@ export default async function Project({
                     <span className="muted">{tanggal(hari)}</span>
                     <span className="num muted">{formatRupiah(rows.reduce((s, e) => s + Number(e.amount), 0))}</span>
                   </div>
-                  {rows.map((e) => (
-                    <div key={e.id} className="row-item flex flex-col gap-1 px-5 py-3 pl-[18px] sm:flex-row sm:items-start sm:gap-4">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium">
-                          {e.category}
-                          {e.person && <span className="muted font-normal"> · {e.person}</span>}
-                        </p>
-                        {e.note && <p className="muted mt-0.5 text-sm">{e.note}</p>}
+                  {rows.map((e) =>
+                    authed && ubah === String(e.id) ? (
+                      <form key={e.id} action={updateExpense} className="grid gap-3 bg-[var(--color-track)] px-5 py-4 sm:grid-cols-2">
+                        <input type="hidden" name="id" value={e.id} />
+                        <input type="hidden" name="project_id" value={id} />
+                        <input name="spent_on" type="date" required defaultValue={e.spent_on} aria-label="Tanggal" className="field" />
+                        <input name="amount" required defaultValue={e.amount} aria-label="Jumlah dalam Rupiah" className="field" />
+                        <input name="category" list="categories" defaultValue={e.category} placeholder="Kategori" aria-label="Kategori" className="field" />
+                        <input name="person" list="people" defaultValue={e.person} placeholder="Nama" aria-label="Nama atau penerima" className="field" />
+                        <input name="note" defaultValue={e.note} placeholder="Keterangan" aria-label="Keterangan" className="field sm:col-span-2" />
+                        <div className="flex items-center gap-3 sm:col-span-2">
+                          <Submit className="btn">Simpan</Submit>
+                          <Link href={q({})} scroll={false} className="link text-sm">
+                            Batal
+                          </Link>
+                        </div>
+                      </form>
+                    ) : (
+                      <div key={e.id} className="row-item flex flex-col gap-1 px-5 py-3 pl-[18px] sm:flex-row sm:items-start sm:gap-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium">
+                            {e.category}
+                            {e.person && <span className="muted font-normal"> · {e.person}</span>}
+                          </p>
+                          {e.note && <p className="muted mt-0.5 text-sm">{e.note}</p>}
+                        </div>
+                        <div className="flex items-center justify-between gap-4 sm:contents">
+                          <span className="num shrink-0 font-medium">{formatRupiah(Number(e.amount))}</span>
+                          {authed && (
+                            <div className="flex items-center gap-3">
+                              <Link
+                                href={q({ ubah: String(e.id) })}
+                                scroll={false}
+                                className="link text-sm"
+                                aria-label={`Ubah ${e.category} ${e.spent_on}`}
+                              >
+                                <PencilSimple size={14} weight="bold" />
+                                Ubah
+                              </Link>
+                              <form action={deleteExpense}>
+                                <input type="hidden" name="id" value={e.id} />
+                                <Submit className="link text-sm" label={`Hapus ${e.category} ${e.spent_on}`}>
+                                  <Trash size={14} weight="bold" />
+                                  Hapus
+                                </Submit>
+                              </form>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between gap-4 sm:contents">
-                        <span className="num shrink-0 font-medium">{formatRupiah(Number(e.amount))}</span>
-                        {authed && (
-                          <form action={deleteExpense}>
-                            <input type="hidden" name="id" value={e.id} />
-                            <Submit className="link text-sm" label={`Hapus ${e.category} ${e.spent_on}`}>
-                              <Trash size={14} weight="bold" />
-                              Hapus
-                            </Submit>
-                          </form>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ),
+                  )}
                 </div>
               ))}
               {!expenses.length && (

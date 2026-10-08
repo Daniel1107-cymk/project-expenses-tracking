@@ -84,6 +84,34 @@ export async function addExpense(form: FormData) {
   redirect(`${back}?bulan=${spentOn.slice(0, 7)}`);
 }
 
+export async function updateExpense(form: FormData) {
+  await gate();
+  const id = Number(form.get("id"));
+  const projectId = Number(form.get("project_id"));
+  const back = `/projects/${projectId}`;
+  const fail = (msg: string) => redirect(`${back}?ubah=${id}&err=${encodeURIComponent(msg)}`);
+  const spentOn = String(form.get("spent_on") ?? "");
+  let amount: number;
+  try {
+    amount = parseRupiah(String(form.get("amount") ?? ""));
+  } catch {
+    return fail("Jumlah tidak valid");
+  }
+  if (!Number.isInteger(id) || !Number.isInteger(projectId) || !/^\d{4}-\d{2}-\d{2}$/.test(spentOn))
+    return fail("Tanggal tidak valid");
+  await ensureSchema();
+  const updated = await sql`update expenses set spent_on = ${spentOn},
+                                   category = ${String(form.get("category") ?? "").trim() || "Lainnya"},
+                                   person = ${String(form.get("person") ?? "").trim()},
+                                   amount = ${amount},
+                                   note = ${String(form.get("note") ?? "").trim()}
+                            where id = ${id} and project_id = ${projectId} returning id`;
+  if (!updated.length) return fail("Catatan tidak ditemukan");
+  revalidatePath("/");
+  revalidatePath(back);
+  redirect(`${back}?bulan=${spentOn.slice(0, 7)}`);
+}
+
 export async function deleteExpense(form: FormData) {
   await gate();
   const id = Number(form.get("id"));
